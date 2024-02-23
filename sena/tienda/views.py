@@ -1,6 +1,9 @@
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .models import DetalleVenta, Producto, Venta
 
 # Importamos todos los modelos de la base de datos
 from .models import *
@@ -357,4 +360,54 @@ def eliminar_item_carrito(request, id_producto):
 	request.session["items"] = len(carrito)
 	request.session["carrito"] = carrito
 	return redirect("carrito_ver")
-		
+
+def actualizar_totales_carrito(request,id_producto):
+	carrito = request.session.get("carrito", False)
+	cantidad = request.GET.get("cantidad")
+
+
+	if carrito != False:
+		for i,item in enumerate(carrito):
+			if item["id"] == id_producto:
+				item["cantidad"] = int(cantidad)
+				item["subtotal"] = int(cantidad) * item["precio"]
+				break
+		else:
+			messages.warning(request, "No se encontro el item en el carrito...")
+	
+	request.session["items"] = len(carrito)
+	request.session["carrito"] = carrito
+	return redirect("inicio")
+
+@receiver(post_save, sender=Venta)
+def actualizar_inventario(sender, instance, created, **kwargs):
+    if created:
+        carrito = instance.detalles.all()
+        for item in carrito:
+            producto = item.producto
+            producto.inventario -= item.cantidad
+            producto.save()
+
+def pagar_carrito(request):
+    if request.method == 'POST':
+        # Obtén los datos del pedido desde la solicitud HTTP del webhook
+        order_id = request.POST.get('order_id')
+        # Crea una nueva venta en la base de datos
+        usuario = request.user
+        venta = Venta.objects.create(usuario=usuario, estado=1)  # Estado "Pendiente"
+        # Crea los detalles de la venta en la base de datos
+        carrito = request.session.get("carrito", [])
+        for item in carrito:
+            producto = Producto.objects.get(id=item["id"])
+            detalle_venta = DetalleVenta.objects.create(venta=venta, producto=producto, cantidad=item["cantidad"], precio_historico=producto.precio)
+        # Vacía el carrito de la sesión
+        request.session["carrito"] = []
+        request.session["items"] = 0
+        # Actualiza el inventario de los productos
+        actualizar_inventario(sender=None, instance=venta, created=True)
+        # Muestra un mensaje de éxito y redirige al usuario a la página de inicio
+        messages.success(request, "¡Gracias por su compra!")
+        return redirect("inicio")
+    else:
+        messages.warning(request, "Error: No se enviaron datos...")
+        return redirect("inicio")

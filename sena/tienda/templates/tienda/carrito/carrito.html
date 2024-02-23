@@ -17,16 +17,18 @@
         <tr>
             <td>
                 <img src="{{ p.foto }}" width="25%" /><br>
-                {{ p.producto }} <br>Precio: ({{ p.precio }})
+                {{ p.producto }} <br>Precio: (${{ p.precio|floatformat:0|intcomma }})
             </td>
             <td>
                 <input type="hidden" name="id" id="id_{{ p.id }}" value="{{ p.id }}" />
-                <input type="number" name="cantidad" id="cantidad_{{ p.id }}" min="1" max="{{ p.inventario }}"
+                <input oninput="actualizar_totales_carrito(`{% url 'actualizar_totales_carrito' p.id %}`, {{ p.id }});"
+                    type="number" name="cantidad" id="cantidad_carrito_{{ p.id }}" min="1" max="{{ p.inventario }}"
                     value="{{ p.cantidad }}" style="width: 50px;" />
             </td>
             <td class="text-end">${{ p.subtotal|floatformat:0|intcomma }}</td>
             <td>
-                <a class="btn btn-danger" href="{% url 'eliminar_item_carrito' p.id %}">x</a>
+                <a class="btn btn-danger"
+                    href="javascript:eliminar_item_carrito(`{% url 'eliminar_item_carrito' p.id %}`);">X</a>
             </td>
         </tr>
         {% endfor %}
@@ -37,7 +39,7 @@
         </tr>
     </tbody>
 </table>
-<a class="btn btn-success" href="#">Pagar</a>
+<a class="btn btn-success" href="{% url 'pagar_carrito' %}">Pagar</a>
 <a class="btn btn-warning" href="{% url 'vaciar_carrito' %}">Vaciar Carrito</a>
 {% else %}
 <p>No hay productos en el carrito</p>
