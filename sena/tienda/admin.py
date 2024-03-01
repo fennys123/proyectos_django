@@ -37,7 +37,12 @@ class VentaAdmin(admin.ModelAdmin):
 
 @admin.register(DetalleVenta)
 class DetalleVentaAdmin(admin.ModelAdmin):
-    list_display = ['id', 'venta', 'producto', 'cantidad', 'precio_historico', 'subtotal']
+    list_display = ['id', 'venta', 'producto', 'cantidad', 'precio_historico', 'subtotal', 'fecha_compra']
 
     def subtotal(self, obj):
         return f"{obj.cantidad * obj.precio_historico}"
+
+    def fecha_compra(self, obj):
+        return obj.venta.fecha_venta
+
+    fecha_compra.short_description = "Fecha de compra"
